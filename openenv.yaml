@@ -6,9 +6,23 @@ app: server.app:app
 port: 8000
 tasks:
   - id: task_easy
-    grader: orderschema.graders:EasyGrader
+    difficulty: easy
+    max_steps: 10
+    grader:
+      type: llm
+      prompt_template: "Score the prediction against the ground truth from 0.0 to 1.0."
+
   - id: task_medium
-    grader: orderschema.graders:MediumGrader
+    difficulty: medium
+    max_steps: 15
+    grader:
+      type: llm
+      prompt_template: "Score the prediction against the ground truth from 0.0 to 1.0."
+
   - id: task_hard
-    grader: orderschema.graders:HardGrader
+    difficulty: hard
+    max_steps: 20
+    grader:
+      type: llm
+      prompt_template: "Score the prediction against the ground truth from 0.0 to 1.0."
 

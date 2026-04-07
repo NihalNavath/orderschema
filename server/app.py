@@ -1,33 +1,3 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
-
-"""
-FastAPI application for the Orderschema Environment.
-
-This module creates an HTTP server that exposes the OrderschemaEnvironment
-over HTTP and WebSocket endpoints, compatible with EnvClient.
-
-Endpoints:
-    - POST /reset: Reset the environment
-    - POST /step: Execute an action
-    - GET /state: Get current environment state
-    - GET /schema: Get action/observation schemas
-    - WS /ws: WebSocket endpoint for persistent sessions
-
-Usage:
-    # Development (with auto-reload):
-    uvicorn server.app:app --reload --host 0.0.0.0 --port 8000
-
-    # Production:
-    uvicorn server.app:app --host 0.0.0.0 --port 8000 --workers 4
-
-    # Or run directly:
-    python -m server.app
-"""
-
 try:
     from openenv.core.env_server.http_server import create_app
 except Exception as e:  # pragma: no cover
@@ -35,50 +5,123 @@ except Exception as e:  # pragma: no cover
         "openenv is required for the web interface. Install dependencies with '\n    uv sync\n'"
     ) from e
 
-try:
-    from models import OrderschemaAction, OrderschemaObservation
-    from .orderschema_environment import OrderschemaEnvironment
-except ModuleNotFoundError:
-    from models import OrderschemaAction, OrderschemaObservation
-    from server.orderschema_environment import OrderschemaEnvironment
+from fastapi import Request
+
+import sys
+import os
+
+# ensure parent dir is on path
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+from models import OrderschemaAction, OrderschemaObservation
+from server.orderschema_environment import OrderschemaEnvironment
 
 
-# Create the app with web interface and README integration
+# ---------------- TASK DATA ----------------
+TASKS = {
+    "task_easy": {
+        "text": "biriyani 2 and chicken noodles 4",
+        "target": [
+            {"item": "biriyani", "quantity": 2},
+            {"item": "chicken noodles", "quantity": 4},
+        ],
+    },
+    "task_medium": {
+        "text": "i need two biriyani, pepsi 2 and four chicken noodles please",
+        "target": [
+            {"item": "biriyani", "quantity": 2},
+            {"item": "pepsi", "quantity": 2},
+            {"item": "chicken noodles", "quantity": 4},
+        ],
+    },
+    "task_hard": {
+        "text": "2 biriyani and noodles x4 coke, coke also poratta and one pepsi pls bro 😅",
+        "target": [
+            {"item": "biriyani", "quantity": 2},
+            {"item": "noodles", "quantity": 4},
+            {"item": "coke", "quantity": 2},
+            {"item": "poratta", "quantity": 1},
+            {"item": "pepsi", "quantity": 1},
+        ],
+    },
+}
+
 app = create_app(
     OrderschemaEnvironment,
     OrderschemaAction,
     OrderschemaObservation,
     env_name="orderschema",
-    max_concurrent_envs=1,  # increase this number to allow more concurrent WebSocket sessions
+    max_concurrent_envs=1,
 )
 
+@app.get("/tasks")
+async def get_tasks():
+    return {
+        "tasks": [
+            {
+                "id": task_id,
+                "input": {
+                    "text": task["text"],
+                    "target": task["target"],
+                },
+            }
+            for task_id, task in TASKS.items()
+        ]
+    }
 
-def main(host: str = "0.0.0.0", port: int = 8000):
-    """
-    Entry point for direct execution via uv run or python -m.
 
-    This function enables running the server without Docker:
-        uv run --project . server
-        uv run --project . server --port 8001
-        python -m orderschema.server.app
+@app.post("/grader")
+async def grade(request: Request):
+    body = await request.json()
 
-    Args:
-        host: Host address to bind to (default: "0.0.0.0")
-        port: Port number to listen on (default: 8000)
+    target = body.get("target", [])
+    pred = body.get("prediction", [])
 
-    For production deployments, consider using uvicorn directly with
-    multiple workers:
-        uvicorn orderschema.server.app:app --workers 4
-    """
+    if not isinstance(pred, list):
+        return {
+            "reward": 0.01,
+            "info": {"error": "invalid_prediction"},
+        }
+
+    matched = set()
+
+    for t in target:
+        for i, p in enumerate(pred):
+            if i in matched:
+                continue
+
+            if (
+                isinstance(p, dict)
+                and p.get("item") == t.get("item")
+                and p.get("quantity") == t.get("quantity")
+            ):
+                matched.add(i)
+                break
+
+    raw_reward = len(matched) / len(target) if target else 0.0
+
+    # clamp to [0.01, 0.99]
+    if raw_reward <= 0.0:
+        reward = 0.01
+    elif raw_reward >= 1.0:
+        reward = 0.99
+    else:
+        reward = float(raw_reward)
+
+    return {
+        "reward": reward,
+        "info": {
+            "matched": len(matched),
+            "total": len(target),
+        },
+    }
+
+
+# ---------------- MAIN ----------------
+def main():
     import uvicorn
-
-    uvicorn.run(app, host=host, port=port)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8000)
-    args = parser.parse_args()
-    main(port=args.port)
+    main()
