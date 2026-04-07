@@ -1,0 +1,14 @@
+spec_version: 1
+name: orderschema
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+tasks:
+  - id: task_easy
+    grader: orderschema.graders:EasyGrader
+  - id: task_medium
+    grader: orderschema.graders:MediumGrader
+  - id: task_hard
+    grader: orderschema.graders:HardGrader
+
