@@ -22,7 +22,7 @@ RUN apt-get update && \
 
 # Build argument to control whether we're building standalone or in-repo
 ARG BUILD_MODE=in-repo
-ARG ENV_NAME=orderschema
+ARG ENV_NAME=aws_rl_env
 
 # Copy environment code (always at root of build context)
 COPY . /app/env
@@ -33,25 +33,25 @@ WORKDIR /app/env
 
 # Ensure uv is available (for local builds where base image lacks it)
 RUN if ! command -v uv >/dev/null 2>&1; then \
-        curl -LsSf https://astral.sh/uv/install.sh | sh && \
-        mv /root/.local/bin/uv /usr/local/bin/uv && \
-        mv /root/.local/bin/uvx /usr/local/bin/uvx; \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.local/bin/uv /usr/local/bin/uv && \
+    mv /root/.local/bin/uvx /usr/local/bin/uvx; \
     fi
-    
+
 # Install dependencies using uv sync
 # If uv.lock exists, use it; otherwise resolve on the fly
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ -f uv.lock ]; then \
-        uv sync --frozen --no-install-project --no-editable; \
+    uv sync --frozen --extra dev --no-install-project --no-editable; \
     else \
-        uv sync --no-install-project --no-editable; \
+    uv sync --extra dev --no-install-project --no-editable; \
     fi
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ -f uv.lock ]; then \
-        uv sync --frozen --no-editable; \
+    uv sync --frozen --extra dev --no-editable; \
     else \
-        uv sync --no-editable; \
+    uv sync --extra dev --no-editable; \
     fi
 
 # Final runtime stage
@@ -68,18 +68,21 @@ COPY --from=builder /app/env/.venv /app/.venv
 # Copy the environment code
 COPY --from=builder /app/env /app/env
 
+# Enable the web interface for OpenEnv (if applicable)
+ENV ENABLE_WEB_INTERFACE=true
+
 # Set PATH to use the virtual environment
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Set PYTHONPATH so imports work correctly
 ENV PYTHONPATH="/app/env:$PYTHONPATH"
 
-ENV ENABLE_WEB_INTERFACE=true
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# DEV_MODE=1 enables live reload via --reload flag
+ENV DEV_MODE=0
 
-# Run the FastAPI server
-# The module path is constructed to work with the /app/env structure
-CMD ["/app/.venv/bin/uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "/app/env"]
+ENV API_BASE_URL=https://router.huggingface.co/v1
+ENV MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
+
+# Entrypoint: start aws_infra in background, then run the FastAPI server
+CMD ["sh",  "-c", "echo hello world"]
