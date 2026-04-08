@@ -1,3 +1,5 @@
+raise RuntimeError("INFERENCE IS RUNNING - BUILD 001")
+
 import asyncio
 import json
 import os
