@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import subprocess
 import textwrap
 from typing import List
 
@@ -117,6 +118,19 @@ def call_model(client: OpenAI, text: str) -> str:
 # ---------------- MAIN ----------------
 async def main():
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+
+    # Debug: check image exists and capture any Docker errors
+    result = subprocess.run(
+        ["docker", "run", "-d", "--name", "debug-probe", "-p", "38381:8000", LOCAL_IMAGE_NAME],
+        capture_output=True, text=True
+    )
+    print(f"[DOCKER STDOUT] {result.stdout}", flush=True)
+    print(f"[DOCKER STDERR] {result.stderr}", flush=True)
+    # Clean up the probe container
+    subprocess.run(["docker", "rm", "-f", "debug-probe"], capture_output=True)
+
+    print(f"[DEBUG ENV] LOCAL_IMAGE_NAME={os.getenv('LOCAL_IMAGE_NAME')}", flush=True)
+    print(f"[DEBUG ENV] IMAGE_NAME={os.getenv('IMAGE_NAME')}", flush=True)
 
     for task_id in TASKS:
         env = await OrderschemaEnv.from_docker_image(LOCAL_IMAGE_NAME)
