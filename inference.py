@@ -121,10 +121,9 @@ def call_model(client: OpenAI, text: str) -> str:
 # ---------------- MAIN ----------------
 async def main():
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    env = await OrderschemaEnv.from_docker_image(IMAGE_NAME)  # ← once, outside loop
 
     for task_id in TASKS:
-        env = await OrderschemaEnv.from_docker_image(IMAGE_NAME)
-
         prediction = "[]"
         rewards = []
         steps = 0
@@ -135,39 +134,28 @@ async def main():
 
         try:
             task_input = TASK_DATA[task_id]
-
-            await env.reset(input=task_input)
-
+            await env.reset(input=task_input)  # reset reuses the same container
+            
             text = task_input["text"]
             prediction = call_model(client, text)
-            print("TEXT SENT TO MODEL:", text, flush=True)
-
+            
             action = OrderschemaAction(message=prediction)
             result = await env.step(action)
-
+            
             reward = result.reward or 0.0
-            done = result.done
-
             rewards.append(reward)
             steps = 1
-
-            log_step(
-                step=1,
-                action=json.dumps({"message": prediction}),
-                reward=reward,
-                done=done,
-            )
-
+            
+            log_step(step=1, action=json.dumps({"message": prediction}), reward=reward, done=result.done)
             score = reward
             success = score > 0.5
 
         except Exception as e:
             print(f"[DEBUG] {e}", flush=True)
 
-        finally:
-            await env.close()
-
         log_end(success=success, steps=steps, score=score, rewards=rewards)
+
+    await env.close()  # ← close once at the very end
 
 
 if __name__ == "__main__":
