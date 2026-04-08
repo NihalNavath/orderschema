@@ -1,5 +1,3 @@
-raise RuntimeError("INFERENCE IS RUNNING - BUILD 001")
-
 import asyncio
 import json
 import os
@@ -8,8 +6,13 @@ from typing import List
 
 from openai import OpenAI
 
-from orderschema import OrderschemaEnv, OrderschemaAction
-
+try:
+    from client import OrderschemaEnv
+    from models import OrderschemaAction
+except ImportError:
+    from .client import OrderschemaEnv
+    from .models import OrderschemaAction
+    
 # ---------------- CONFIG ----------------
 IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:8000")
