@@ -22,7 +22,7 @@ RUN apt-get update && \
 
 # Build argument to control whether we're building standalone or in-repo
 ARG BUILD_MODE=in-repo
-ARG ENV_NAME=aws_rl_env
+ARG ENV_NAME=orderschema
 
 # Copy environment code (always at root of build context)
 COPY . /app/env
@@ -85,4 +85,4 @@ ENV API_BASE_URL=https://router.huggingface.co/v1
 ENV MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
 
 # Entrypoint: start aws_infra in background, then run the FastAPI server
-CMD ["sh",  "-c", "echo hello world"]
+CMD ["sh", "-c", "uvicorn server.app:app --host 0.0.0.0 --port 8000 $([ \"$DEV_MODE\" = '1' ] && echo '--reload --reload-dir /app/env')"]
