@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-import subprocess
 import textwrap
 from typing import List
 
@@ -10,7 +9,7 @@ from openai import OpenAI
 from orderschema import OrderschemaEnv, OrderschemaAction
 
 # ---------------- CONFIG ----------------
-# IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:8000")
 
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
@@ -119,50 +118,50 @@ def call_model(client: OpenAI, text: str) -> str:
 # ---------------- MAIN ----------------
 async def main():
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    env = None
 
-    for task_id in TASKS:
-        prediction = "[]"
-        rewards = []
-        steps = 0
-        score = 0.0
-        success = False
-        env = None
+    try:
+        if IMAGE_NAME:
+            env = await OrderschemaEnv.from_docker_image(IMAGE_NAME)
+        else:
+            env = OrderschemaEnv(base_url=ENV_BASE_URL)
+            await env.connect()
 
-        log_start(task_id)
+        for task_id in TASKS:
+            prediction = "[]"
+            rewards = []
+            steps = 0
+            score = 0.0
+            success = False
 
-        try:
-            task_input = TASK_DATA[task_id]
-            
-            if False:
-                env = await OrderschemaEnv.from_docker_image(IMAGE_NAME)
-            else:
-                env = OrderschemaEnv(base_url=ENV_BASE_URL)
-                await env.connect()
-            
-            await env.reset(input=task_input)
-            
-            text = task_input["text"]
-            prediction = call_model(client, text)
-            
-            action = OrderschemaAction(message=prediction)
-            result = await env.step(action)
-            
-            reward = result.reward or 0.0
-            rewards.append(reward)
-            steps = 1
-            
-            log_step(step=1, action=json.dumps({"message": prediction}), reward=reward, done=result.done)
-            score = reward
-            success = score > 0.5
+            log_start(task_id)
 
-        except Exception as e:
-            print(f"[DEBUG] {e}", flush=True)
+            try:
+                task_input = TASK_DATA[task_id]
+                await env.reset(input=task_input)
 
-        finally:
-            if env:
-                await env.close()  # ← inside loop, in finally
+                text = task_input["text"]
+                prediction = call_model(client, text)
 
-        log_end(success=success, steps=steps, score=score, rewards=rewards)
+                action = OrderschemaAction(message=prediction)
+                result = await env.step(action)
+
+                reward = result.reward or 0.0
+                rewards.append(reward)
+                steps = 1
+
+                log_step(step=1, action=json.dumps({"message": prediction}), reward=reward, done=result.done)
+                score = reward
+                success = score > 0.5
+
+            except Exception as e:
+                print(f"[DEBUG] task {task_id} error: {e}", flush=True)
+
+            log_end(success=success, steps=steps, score=score, rewards=rewards)
+
+    finally:
+        if env:
+            await env.close()
 
 
 if __name__ == "__main__":
