@@ -59,6 +59,9 @@ FROM ${BASE_IMAGE}
 
 WORKDIR /app
 
+# Copy the uv-managed Python interpreter from builder
+COPY --from=builder /root/.local/share/uv/python /root/.local/share/uv/python
+
 # Copy the virtual environment from builder
 COPY --from=builder /app/env/.venv /app/.venv
 
