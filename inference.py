@@ -10,9 +10,9 @@ from openai import OpenAI
 from orderschema import OrderschemaEnv, OrderschemaAction
 
 # ---------------- CONFIG ----------------
-LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or "orderschema"
 
-if not LOCAL_IMAGE_NAME:
+if not IMAGE_NAME:
     raise RuntimeError("No Docker image provided (LOCAL_IMAGE_NAME / IMAGE_NAME missing)")
 
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
@@ -123,7 +123,7 @@ async def main():
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
     for task_id in TASKS:
-        env = await OrderschemaEnv.from_docker_image(LOCAL_IMAGE_NAME)
+        env = await OrderschemaEnv.from_docker_image(IMAGE_NAME)
 
         prediction = "[]"
         rewards = []
