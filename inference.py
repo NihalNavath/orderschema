@@ -10,10 +10,8 @@ from openai import OpenAI
 from orderschema import OrderschemaEnv, OrderschemaAction
 
 # ---------------- CONFIG ----------------
-IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or "orderschema"
-
-if not IMAGE_NAME:
-    raise RuntimeError("No Docker image provided (LOCAL_IMAGE_NAME / IMAGE_NAME missing)")
+# IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:8000")
 
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
@@ -121,7 +119,6 @@ def call_model(client: OpenAI, text: str) -> str:
 # ---------------- MAIN ----------------
 async def main():
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    env = await OrderschemaEnv.from_docker_image(IMAGE_NAME)  # ← once, outside loop
 
     for task_id in TASKS:
         prediction = "[]"
@@ -129,12 +126,20 @@ async def main():
         steps = 0
         score = 0.0
         success = False
+        env = None
 
         log_start(task_id)
 
         try:
             task_input = TASK_DATA[task_id]
-            await env.reset(input=task_input)  # reset reuses the same container
+            
+            if False:
+                env = await OrderschemaEnv.from_docker_image(IMAGE_NAME)
+            else:
+                env = OrderschemaEnv(base_url=ENV_BASE_URL)
+                await env.connect()
+            
+            await env.reset(input=task_input)
             
             text = task_input["text"]
             prediction = call_model(client, text)
@@ -153,9 +158,11 @@ async def main():
         except Exception as e:
             print(f"[DEBUG] {e}", flush=True)
 
-        log_end(success=success, steps=steps, score=score, rewards=rewards)
+        finally:
+            if env:
+                await env.close()  # ← inside loop, in finally
 
-    await env.close()  # ← close once at the very end
+        log_end(success=success, steps=steps, score=score, rewards=rewards)
 
 
 if __name__ == "__main__":
