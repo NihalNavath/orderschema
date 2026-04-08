@@ -8,13 +8,9 @@ from openai import OpenAI
 
 try:
     from orderschema import OrderschemaEnv, OrderschemaAction
-except ModuleNotFoundError:
-    try:
-        from .client import OrderschemaEnv
-        from .models import OrderschemaAction
-    except ModuleNotFoundError:
-        from client import OrderschemaEnv
-        from models import OrderschemaAction
+except (ModuleNotFoundError, ImportError):
+    from client import OrderschemaEnv
+    from models import OrderschemaAction
 
 # ---------------- CONFIG ----------------
 IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
@@ -129,11 +125,8 @@ async def main():
     env = None
 
     try:
-        if IMAGE_NAME:
-            env = await OrderschemaEnv.from_docker_image(IMAGE_NAME)
-        else:
-            env = OrderschemaEnv(base_url=ENV_BASE_URL)
-            await env.connect()
+        env = OrderschemaEnv(base_url=ENV_BASE_URL)
+        await env.connect()
 
         for task_id in TASKS:
             prediction = "[]"
