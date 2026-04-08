@@ -11,7 +11,6 @@ from orderschema import OrderschemaEnv, OrderschemaAction
 
 # ---------------- CONFIG ----------------
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
-IMAGE_NAME = os.getenv("IMAGE_NAME")
 
 if not LOCAL_IMAGE_NAME:
     raise RuntimeError("No Docker image provided (LOCAL_IMAGE_NAME / IMAGE_NAME missing)")
