@@ -7,12 +7,15 @@ from typing import List
 from openai import OpenAI
 
 try:
-    from client import OrderschemaEnv
-    from models import OrderschemaAction
-except ImportError:
-    from .client import OrderschemaEnv
-    from .models import OrderschemaAction
-    
+    from orderschema import OrderschemaEnv, OrderschemaAction
+except ModuleNotFoundError:
+    try:
+        from .client import OrderschemaEnv
+        from .models import OrderschemaAction
+    except ModuleNotFoundError:
+        from client import OrderschemaEnv
+        from models import OrderschemaAction
+
 # ---------------- CONFIG ----------------
 IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:8000")
