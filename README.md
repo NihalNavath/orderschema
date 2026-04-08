@@ -10,6 +10,14 @@ base_path: /web
 tags:
   - openenv
 ---
+# The Problem
+![WhatsApp order example showing messy input](https://i.postimg.cc/90pRXNqG/Screenshot-2026-04-08-092206.png)
+
+We have all ordered something through text.
+
+A lot of businesses, especially small and medium vendors, still take orders through apps like WhatsApp, Facebook. It just makes sense almost everyone already has it (2+ billion users), it’s easy to use, and it’s completely free. For businesses, it’s the easiest way to start taking orders without forcing customers to go to some third-party website or app. Tools like WhatsApp Business are literally built for this use case, so it’s a natural choice.
+
+But this also creates a problem. Orders come in as messy text, and someone has to sit and read everything manually. During busy times, this easily leads to mistakes — wrong items, wrong quantities, or things getting missed completely. Error rates can go as high as 20–25% in peak hours. This slows things down, puts extra pressure on staff, and leads to a bad customer experience. I’ve personally faced this a lot — getting the wrong order and then spending time fixing it is honestly frustrating.
 
 # Orderschema Environment
 
@@ -103,73 +111,3 @@ Before using the environment, you need to build the Docker image:
 # From project root
 docker build -t orderschema-env:latest -f server/Dockerfile .
 ```
-
-## Deploying to Hugging Face Spaces
-
-You can easily deploy your OpenEnv environment to Hugging Face Spaces using the `openenv push` command:
-
-```bash
-# From the environment directory (where openenv.yaml is located)
-openenv push
-
-# Or specify options
-openenv push --namespace my-org --private
-```
-
-The `openenv push` command will:
-1. Validate that the directory is an OpenEnv environment (checks for `openenv.yaml`)
-2. Prepare a custom build for Hugging Face Docker space (enables web interface)
-3. Upload to Hugging Face (ensuring you're logged in)
-
-### Prerequisites
-
-- Authenticate with Hugging Face: The command will prompt for login if not already authenticated
-
-### Options
-
-- `--directory`, `-d`: Directory containing the OpenEnv environment (defaults to current directory)
-- `--repo-id`, `-r`: Repository ID in format 'username/repo-name' (defaults to 'username/env-name' from openenv.yaml)
-- `--base-image`, `-b`: Base Docker image to use (overrides Dockerfile FROM)
-- `--private`: Deploy the space as private (default: public)
-
-### Examples
-
-```bash
-# Push to your personal namespace (defaults to username/env-name from openenv.yaml)
-openenv push
-
-# Push to a specific repository
-openenv push --repo-id my-org/my-env
-
-# Push with a custom base image
-openenv push --base-image ghcr.io/meta-pytorch/openenv-base:latest
-
-# Push as a private space
-openenv push --private
-
-# Combine options
-openenv push --repo-id my-org/my-env --base-image custom-base:latest --private
-```
-
-After deployment, your space will be available at:
-`https://huggingface.co/spaces/<repo-id>`
-
-The deployed space includes:
-- **Web Interface** at `/web` - Interactive UI for exploring the environment
-- **API Documentation** at `/docs` - Full OpenAPI/Swagger interface
-- **Health Check** at `/health` - Container health monitoring
-- **WebSocket** at `/ws` - Persistent session endpoint for low-latency interactions
-
-## Environment Details
-
-### Action
-**OrderschemaAction**: Contains a single field
-- `message` (str) - The message to echo back
-
-### Observation
-**OrderschemaObservation**: Contains the echo response and metadata
-- `echoed_message` (str) - The message echoed back
-- `message_length` (int) - Length of the message
-- `reward` (float) - Reward based on message length (length × 0.1)
-- `done` (bool) - Always False for echo environment
-- `metadata` (dict) - Additional info like step count
