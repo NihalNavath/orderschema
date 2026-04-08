@@ -10,8 +10,12 @@ from openai import OpenAI
 from orderschema import OrderschemaEnv, OrderschemaAction
 
 # ---------------- CONFIG ----------------
-LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or "orderschema"
-IMAGE_NAME = os.getenv("IMAGE_NAME") or "orderschema"
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+IMAGE_NAME = os.getenv("IMAGE_NAME")
+
+if not LOCAL_IMAGE_NAME:
+    raise RuntimeError("No Docker image provided (LOCAL_IMAGE_NAME / IMAGE_NAME missing)")
+
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
@@ -118,19 +122,6 @@ def call_model(client: OpenAI, text: str) -> str:
 # ---------------- MAIN ----------------
 async def main():
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-
-    # Debug: check image exists and capture any Docker errors
-    result = subprocess.run(
-        ["docker", "run", "-d", "--name", "debug-probe", "-p", "38381:8000", LOCAL_IMAGE_NAME],
-        capture_output=True, text=True
-    )
-    print(f"[DOCKER STDOUT] {result.stdout}", flush=True)
-    print(f"[DOCKER STDERR] {result.stderr}", flush=True)
-    # Clean up the probe container
-    subprocess.run(["docker", "rm", "-f", "debug-probe"], capture_output=True)
-
-    print(f"[DEBUG ENV] LOCAL_IMAGE_NAME={os.getenv('LOCAL_IMAGE_NAME')}", flush=True)
-    print(f"[DEBUG ENV] IMAGE_NAME={os.getenv('IMAGE_NAME')}", flush=True)
 
     for task_id in TASKS:
         env = await OrderschemaEnv.from_docker_image(LOCAL_IMAGE_NAME)
